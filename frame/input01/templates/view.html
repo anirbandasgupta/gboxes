@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Prediction results</title>
+</head>
+<body>
+    <form method="POST" enctype="multipart/form-data" action="downloadfile">
+    {% csrf_token %}
+        <center><h1 style="margin-top: 50px;">Results from SMA</h1> </center><br>
+        <center><B>Before new G5 box pattern</B></center><br>
+        <center><button><a href = "media\\output_wo_bias.html" style="text-decoration: none; color: black;" target="_blank">Show the results</a></button></center><br>
+        <center><button type="submit" style="cursor: pointer;">Download the file</button></center><br>
+    </form>
+    <form method="POST" enctype="multipart/form-data" action="downloadfilenew">
+    {% csrf_token %}
+        <center><B>After new G5 box pattern</B></center><br>
+        <center><button><a href = "media\\output_new.html" style="text-decoration: none; color: black;" target="_blank">Show the results</a></button></center><br>
+        <center><button type="submit" style="cursor: pointer;">Download the file</button></center><br>
+    </form>
+    <center><B>Negative Control</B></center><br>
+        <form method="POST" enctype="multipart/form-data" action="negative1">
+        {% csrf_token %}
+        <center><button><a href = "media\\after.html" style="text-decoration: none; color: black;" target="_blank">Before new G5 box pattern</a></button></center><br>
+        <center><button type="submit" style="cursor: pointer;">Download</button></center><br>
+        </form>
+        <form method="POST" enctype="multipart/form-data" action="negative2">
+        {% csrf_token %}
+        <center><button><a href = "media\\before.html" style="text-decoration: none; color: black;" target="_blank">After new G5 box pattern</a></button></center><br>
+        <center><button type="submit" style="cursor: pointer;">Download</button></center><br>
+        </form>
+        <form method="POST" enctype="multipart/form-data" action="negative3">
+        {% csrf_token %}
+        <center><button type="submit" style="cursor: pointer;">Show the plot</button></center><br>
+        </form>
+    <!--<center><B>Plots</B></center><br>
+    <form method = "POST" enctype="multipart/form-data" action="showimage">
+    {% csrf_token %}
+        <center><button type="submit" style="cursor: pointer;">G - box plot</button></center><br>
+    </form>-->
+    <center><img src="showimage" alt="plot" /></center>
+    <form method="POST" enctype="multipart/form-data" action="showimage1">
+    {% csrf_token %}
+        <center><button type="submit" style="cursor: pointer;">Download the plots</button></center><br>
+    </form>
+</body>
+</html>

@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<!--<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Similarity Check</title>
+    <link rel="stylesheet" href="https://bootswatch.com/4/darkly/bootstrap.min.css">
+</head>
+<body>
+    <form method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+        <fieldset style="margin-top: 70px;">
+          <legend>G Domain Prediction</legend>
+          <div class="form-group" style="margin-top: 30px;">
+            <fieldset>
+              <label class="control-label" for="readOnlyInput">Enter family name</label>
+              <input class="form-control" id="readOnlyInput" name="input01" placeholder="Family name.." >
+            </fieldset>
+          </div>
+          <div class="form-group" style="margin-top: 30px;">
+            <fieldset>
+              <label class="control-label" for="readOnlyInput">Browse the file*</label><br>
+              <input type="file" name="document">
+            </fieldset>
+          </div>
+          <div class="form-group" style="margin-top: 30px;">
+            <fieldset>
+              <label class="control-label" for="readOnlyInput" style="margin-right: 20px;">Number of mismatches :</label>
+              <label class="control-label" for="readOnlyInput">G1</label>
+              <input name="mismatch1" style="width: 70px; margin-left: 10px; margin-right: 50px;">
+              <label class="control-label" for="readOnlyInput">G3</label>
+              <input name="mismatch2" style="width: 70px; margin-left: 10px; margin-right: 50px;">
+              <label class="control-label" for="readOnlyInput">G4</label>
+              <input name="mismatch3" style="width: 70px; margin-left: 10px; margin-right: 50px;">
+              <label class="control-label" for="readOnlyInput">G5</label>
+              <input name="mismatch4" style="width: 70px; margin-left: 10px; margin-right: 50px;">
+            </fieldset>
+          </div>
+          <div class="form-group" style="margin-top: 30px;">
+            <fieldset>
+              <label class="control-label" for="readOnlyInput" style="margin-right: 20px;">Minimum spacing between :</label>
+              <label class="control-label" for="readOnlyInput">G1 and G3</label>
+              <input name="Min_G1_G3" style="width: 70px; margin-left: 10px; margin-right: 50px;">
+              <label class="control-label" for="readOnlyInput">G3 and G4</label>
+              <input name="Min_G3_G4" style="width: 70px; margin-left: 10px; margin-right: 50px;">
+              <label class="control-label" for="readOnlyInput">G4 and G5</label>
+              <input name="Min_G4_G5" style="width: 70px; margin-left: 10px; margin-right: 50px;">
+            </fieldset>
+          </div>
+          <div class="form-group" style="margin-top: 30px;">
+            <fieldset>
+              <label class="control-label" for="readOnlyInput" style="margin-right: 20px;">Maximum spacing between :</label>
+              <label class="control-label" for="readOnlyInput">G1 and G3</label>
+              <input name="Max_G1_G3" style="width: 70px; margin-left: 10px; margin-right: 50px;">
+              <label class="control-label" for="readOnlyInput">G3 and G4</label>
+              <input name="Max_G3_G4" style="width: 70px; margin-left: 10px; margin-right: 50px;">
+              <label class="control-label" for="readOnlyInput">G4 and G5</label>
+              <input name="Max_G4_G5" style="width: 70px; margin-left: 10px; margin-right: 50px;">
+            </fieldset>
+          </div>
+          <div class="form-group" style="margin-top: 30px;">
+            <fieldset>
+              <label class="control-label" for="readOnlyInput" style="margin-right: 20px;">Box patterns ** :</label>
+              <label class="control-label" for="readOnlyInput">G1</label>
+              <input name="x1" style="width: 100px; margin-left: 10px; margin-right: 50px;">
+              <label class="control-label" for="readOnlyInput">G3</label>
+              <input name="x2" style="width: 100px; margin-left: 10px; margin-right: 50px;">
+              <label class="control-label" for="readOnlyInput">G4</label>
+              <input name="x3" style="width: 100px; margin-left: 10px; margin-right: 50px;">
+              <label class="control-label" for="readOnlyInput">G5</label>
+              <input name="x4" style="width: 100px; margin-left: 10px; margin-right: 50px;">
+            </fieldset>
+          </div>
+          <button type="submit" class="btn btn-primary" style="margin-top: 30px;">Submit</button>
+          <div class="form-group" style="margin-top: 100px;">
+            <fieldset>
+              <label class="control-label" for="readOnlyInput">* The file must contain at least the id and sequence of the family with .xlsx extension.</label><br>
+              <label class="control-label" for="readOnlyInput">** The default pattern for G1 is GXXXXGK, G3 is DXXG, G4 is NKXD and G5 is SAX.</label>
+            </fieldset>
+          </div>
+        </fieldset>
+      </form>
+    
+</body>
+</html>-->
+
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>G Domain Prediction</title>
+</head>
+<body bgcolor = "white">
+<form method="POST" enctype="multipart/form-data" action="performAlgo">
+    {% csrf_token %}
+    <center><h1 style="margin-top: 50px;">G Domain Prediction</h1> </center>
+    <center><B>Enter the family name</B></center><br>
+    <center><input type = "text" name="input01" maxlength="100"></center> <br>
+    <center><B>Upload Your file containing the id and sequence. File must have an .xlsx extension.</B></center><br>
+    <center><input type="file" name="document"><br><br></center>
+    <center><B>Patterns for each box</b> <br>
+        <font size=2>The default pattern for G1 is GXXXXGK, G3 is DXXG, G4 is NKXD and G5 is SAX.</font>
+    </center>
+    <br>
+    <table align="center" border="1" bgcolor="#80ABF4">
+        <tr><th bgcolor="142c73"><font color="#80ABF4" face="Bookman Old Style">Box</font></th>
+            <th bgcolor="142c73"><font color="#80ABF4" face="Bookman Old Style">Patterns</font></th></tr></font>
+        <tr><td align="center">G1</td><td><input type="text" name="x1" size="40"></td></tr>
+        <tr><td align="center">G3</td><td><input type="text" name="x2" size="40"></td></tr>
+        <tr><td align="center">G4</td><td><input type="text" name="x3" size="40"></td></tr>
+        <tr><td align="center">G5</td><td><input type="text" name="x4" size="40"></td></tr>
+    </table>
+    <br>
+    <center><B>Number of mismatches for each box</b> <br></center>
+    <br>
+    <table align="center" border="1" bgcolor="#80ABF4">
+        <tr><th bgcolor="142c73"><font color="#80ABF4" face="Bookman Old Style">Box</font></th>
+            <th bgcolor="142c73"><font color="#80ABF4" face="Bookman Old Style">Mismatches</font></th></tr></font>
+        <tr><td align="center">G1</td><td><input type="text" name="mismatch1" size="40"></td></tr>
+        <tr><td align="center">G3</td><td><input type="text" name="mismatch2" size="40"></td></tr>
+        <tr><td align="center">G4</td><td><input type="text" name="mismatch3" size="40"></td></tr>
+        <tr><td align="center">G5</td><td><input type="text" name="mismatch4" size="40"></td></tr>
+    </table>
+    <br>
+    <center><B>Spacing between boxes</b> <br></center>
+    <br>
+    <table align="center" border="1" bgcolor="#80ABF4">
+        <tr><th bgcolor="142c73"><font color="#80ABF4" face="Bookman Old Style">Boxes</font></th>
+            <th bgcolor="142c73"><font color="#80ABF4" face="Bookman Old Style">Minimum spacing</font></th>
+            <th bgcolor="142c73"><font color="#80ABF4" face="Bookman Old Style">Maximum spacing</font></th></tr></font>
+        <tr><td align="center">G1 and G3</td><td><input type="text" name="Min_G1_G3" size="30"></td><td><input type="text" name="Max_G1_G3" size="30"></td></tr>
+        <tr><td align="center">G3 and G4</td><td><input type="text" name="Min_G3_G4" size="30"></td><td><input type="text" name="Max_G3_G4" size="30"></td></tr>
+        <tr><td align="center">G4 and G5</td><td><input type="text" name="Min_G4_G5" size="30"></td><td><input type="text" name="Max_G4_G5" size="30"></td></tr>
+    </table>
+    <br>
+    <center><input type="submit" value="SUBMIT"><center><br>
+</form>
+<form method="POST" enctype="multipart/form-data" action="negative_control">
+    {% csrf_token %}
+    <center><font size=4>Just having a sequence. Try this to get your results. <br> <br><input type="submit" value="CLICK HERE"></font></center>
+</form>
+</body>
+</html>

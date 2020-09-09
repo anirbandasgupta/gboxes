@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Predicted Family results</title>
+</head>
+<body>
+    <form method="POST" enctype="multipart/form-data" action="downloadfile1">
+    {% csrf_token %}
+        <center><h1 style="margin-top: 50px;">Results from SMA</h1> </center><br>
+        <center><button><a href = "media\\output_new.html" style="text-decoration: none; color: black;" target="_blank">Show the results</a></button></center><br>
+        <center><button type="submit" style="cursor: pointer;">Download the file</button></center><br>
+    </form>
+</body>
+</html>
