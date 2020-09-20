@@ -21,12 +21,21 @@ from matplotlib.ticker import PercentFormatter
 from matplotlib import pyplot
 import matplotlib.pyplot as plt
 import PIL, PIL.Image
-import os
+import uuid, os
+import tempfile
+
 try:
     from StringIO import BytesIO
 except ImportError:
     from io import BytesIO
 
+DIR = ""
+def generateDirname():
+    '''
+    Generates an unique name for the temporary directory
+    '''
+    dirname = uuid.uuid4().hex
+    return dirname
 
 
 '''from google.colab import drive
@@ -35,7 +44,7 @@ drive.mount('/content/drive')'''
 # Create your views here.
 
 def welcome(request):
-    return HttpResponse("Welcome")
+    return HttpResponse("welcome")
 
 def ourResponse(request):
     return HttpResponse("OUR RESPONSE")
@@ -48,11 +57,36 @@ def similarity(seq1, seq2):
     ldist = Levenshtein.wf(seq1, seq2)
     return (1 - ldist/max(l1, l2))*100
 
-def df_gdomain_counter(df):
-    df_count = df["ProteinID"].value_counts()
-    return df_count
+def performAlgo(request):
+    global DIR
+    DIR = "/tmp/temp-media/" + generateDirname()
+    os.mkdir(DIR)
+    #DIR = tempfile.TemporaryDirectory(prefix="/tmp/temp-media/").name
 
-def match(x, y, mm):
+    myfile = request.FILES['document']
+    print(myfile.name)
+    fs = FileSystemStorage()
+    '''fs.save(myfile.name, myfile)'''
+    workbook = xlsxwriter.Workbook(DIR + '/new.xlsx')
+    family = request.POST.get("input01")
+    outpath = DIR + "/new.xlsx"
+    df1 = pd.read_excel(myfile)
+    df2 = df1
+    for i in range((df1.shape[0] - 1)):
+        A = df1.loc[i, "Sequence"]
+        B = df1.loc[(i + 1), "Sequence"]
+        percent_similarity = similarity(A, B)
+
+        if (percent_similarity >= 90):
+            df2 = df2.drop(df2[df2.Sequence == B].index)
+
+    df2.to_excel(outpath, index=False)
+
+    def df_gdomain_counter(df):
+        df_count = df["ProteinID"].value_counts()
+        return df_count
+
+    def match(x, y, mm):
         mismatch = 0
         for i in range(len(x)):
             if (x[i] == 'X' or x[i] == y[i]):
@@ -63,45 +97,6 @@ def match(x, y, mm):
             return True
         else:
             return False
-
-def shuffler(word):
-    word_to_scramble = list(word)
-    numpy.random.shuffle(word_to_scramble)
-    # O=seq= ''.join(seq_temp)
-    new_word = ''.join(word_to_scramble)
-    return new_word
-
-def list_of_7mer_X(sevenmer):
-        x_data = []
-        for r1 in range(7):
-            x = list(sevenmer)
-            x[r1] = "X"
-            x = ''.join(x)
-            x_data.append(x)
-        return x_data
-
-def performAlgo(request):
-    myfile = request.FILES['document']
-    print(myfile.name)
-    fs = FileSystemStorage()
-    '''fs.save(myfile.name, myfile)'''
-    workbook = xlsxwriter.Workbook('media/new.xlsx')
-    family = request.POST.get("input01")
-    outpath = "media/new.xlsx"
-    df1 = pd.read_excel(myfile)
-    df2 = df1
-
-    for i in range((df1.shape[0] - 1)):
-        A = df1.loc[i, "Sequence"]
-        B = df1.loc[(i + 1), "Sequence"]
-        percent_similarity = similarity(A, B)
-
-        if (percent_similarity >= 90):
-            df2 = df2.drop(df2[df2.Sequence == B].index)
-
-    df2.to_excel(outpath, index=False)
-    NumProteins = df2.shape[0]
-
 
     def H(protein_id, protein, x1, x2, x3, x4, mm1, mm2, mm3, mm4, min13, min34, min45, max13, max34, max45):
         pL1 = []
@@ -156,11 +151,17 @@ def performAlgo(request):
 
         return candidates
 
+    def shuffler(word):
+        word_to_scramble = list(word)
+        numpy.random.shuffle(word_to_scramble)
+        # O=seq= ''.join(seq_temp)
+        new_word = ''.join(word_to_scramble)
+        return new_word
 
     abc = []
     l1 = []
 
-    inpath = "media/new.xlsx"
+    inpath = DIR + "/new.xlsx"
     mismatch1 = int(request.POST.get("mismatch1"))
     mismatch2 = int(request.POST.get("mismatch2"))
     mismatch3 = int(request.POST.get("mismatch3"))
@@ -178,8 +179,8 @@ def performAlgo(request):
     Min_G4_G5 = int(request.POST.get("Min_G4_G5"))
     Max_G4_G5 = int(request.POST.get("Max_G4_G5"))
 
-    workbook = xlsxwriter.Workbook('media/output_wo_bias.xlsx')
-    outpath = "media/output_wo_bias.xlsx"
+    outpath = DIR + "/output_wo_bias.xlsx"
+    workbook = xlsxwriter.Workbook(outpath)
 
     df1 = pd.read_excel(inpath)
     df2 = df1.set_index("Entry", drop=False)
@@ -201,8 +202,8 @@ def performAlgo(request):
     abc = []
     l1 = []
 
-    workbook = xlsxwriter.Workbook('media/SA_nomismatch.xlsx')
-    outpath = "media/SA_nomismatch.xlsx"
+    outpath = DIR + "/SA_nomismatch.xlsx"
+    workbook = xlsxwriter.Workbook(outpath)
 
     str1 = "XXX"
     x41 = str1 + x4 + "X"
@@ -212,7 +213,7 @@ def performAlgo(request):
     df2 = df1.set_index("Entry", drop=False)
     protein = df2.loc[:, "Sequence"]
     protein_id = df2.loc[:, "Entry"]
-    #protein_id
+    protein_id
     for i in range(len(protein)):
         l = H(protein_id[i], protein[i], x1, x2, x3, x41, mismatch1, mismatch2, mismatch3, mismatch41, Min_G1_G3,
               Min_G3_G4, Min_G4_G5, Max_G1_G3, Max_G3_G4, Max_G4_G5)
@@ -228,8 +229,8 @@ def performAlgo(request):
     abc = []
     l1 = []
 
-    workbook = xlsxwriter.Workbook('media/SA_mismatch.xlsx')
-    outpath = "media/SA_mismatch.xlsx"
+    outpath = DIR + "/SA_mismatch.xlsx"
+    workbook = xlsxwriter.Workbook(outpath)
 
     df1 = pd.read_excel(inpath)
     df2 = df1.set_index("Entry", drop=False)
@@ -251,8 +252,8 @@ def performAlgo(request):
     abc = []
     l1 = []
 
-    workbook = xlsxwriter.Workbook('media/A_nomismatch.xlsx')
-    outpath = "media/A_nomismatch.xlsx"
+    outpath = DIR + "/A_nomismatch.xlsx"
+    workbook = xlsxwriter.Workbook(DIR + '/A_nomismatch.xlsx')
 
     y = x4[1:]
     z = y[:-1]
@@ -274,21 +275,27 @@ def performAlgo(request):
     gdomains.head()
     gdomains.to_excel(outpath, index=False)
 
-    inpath_SA_mm = "media/SA_mismatch.xlsx"
-    workbook = xlsxwriter.Workbook('media/SA_mm_7mer_X_dict.xlsx')
-    outpath1_SA_mm = "media/SA_mm_7mer_X_dict.xlsx"
-    workbook = xlsxwriter.Workbook('media/SA_mm_7mer_X_dict_count.xlsx')
-    outpath2_SA_mm = "media/SA_mm_7mer_X_dict_count.xlsx"
+    inpath_SA_mm = DIR + "/SA_mismatch.xlsx"
+    workbook = xlsxwriter.Workbook(DIR + '/SA_mm_7mer_X_dict.xlsx')
+    outpath1_SA_mm = DIR + "/SA_mm_7mer_X_dict.xlsx"
+    workbook = xlsxwriter.Workbook(DIR + '/SA_mm_7mer_X_dict_count.xlsx')
+    outpath2_SA_mm = DIR + "/SA_mm_7mer_X_dict_count.xlsx"
 
+    def list_of_7mer_X(sevenmer):
+        x_data = []
+        for r1 in range(7):
+            x = list(sevenmer)
+            x[r1] = "X"
+            x = ''.join(x)
+            x_data.append(x)
+        return x_data
 
     str2 = [["Rab", 470], ["Rac", 128], ["Ran", 29], ["Ras", 190], ["Roc", 19], ["Arf", 140], ["AlG1", 44],
             ["Era", 188], ["FeoB", 18], ["Hflx", 26], ["GB1", 116], ["EngB", 401], ["Dynamin", 115], ["IRG", 10],
             ["Obg", 659], ["Septin", 86], ["SRP", 99], ["Translational", 2869], ["tRme", 454], ["EngA", 424]]
-    
-    #for i in str2:
-    #    if (i[0] == family):
-    #        #total = i[1]
-    total = NumProteins
+    for i in str2:
+        if (i[0] == family):
+            total = i[1]
 
     data = pd.read_excel(inpath_SA_mm)
     unique_7mers = data['G5-box'].unique()
@@ -315,11 +322,11 @@ def performAlgo(request):
         [f.write('{0},{1}\n'.format(key, [len(value), round((100 * len(value) / total), 2)])) for key, value in
          id_set.items()]
 
-    inpath_A_nomm = "media/A_nomismatch.xlsx"
-    workbook = xlsxwriter.Workbook('media/A_nomm_7mer_X_dict.xlsx')
-    outpath1_A_nomm = "media/A_nomm_7mer_X_dict.xlsx"
-    workbook = xlsxwriter.Workbook('media/A_nomm_7mer_X_dict_count.xlsx')
-    outpath2_A_nomm = "media/A_nomm_7mer_X_dict_count.xlsx"
+    inpath_A_nomm = DIR + "/A_nomismatch.xlsx"
+    workbook = xlsxwriter.Workbook(DIR + '/A_nomm_7mer_X_dict.xlsx')
+    outpath1_A_nomm = DIR + "/A_nomm_7mer_X_dict.xlsx"
+    workbook = xlsxwriter.Workbook(DIR + '/A_nomm_7mer_X_dict_count.xlsx')
+    outpath2_A_nomm = DIR + "/A_nomm_7mer_X_dict_count.xlsx"
 
     data1 = pd.read_excel(inpath_A_nomm)
     unique_7mers = data1['G5-box'].unique()
@@ -346,11 +353,11 @@ def performAlgo(request):
         [f.write('{0},{1}\n'.format(key, [len(value), round((100 * len(value) / total), 2)])) for key, value in
          id_set1.items()]
 
-    inpath_SA_nomm = "media/SA_nomismatch.xlsx"
-    workbook = xlsxwriter.Workbook('media/SA_nomm_7mer_X_dict.xlsx')
-    outpath1_SA_nomm = "media/SA_nomm_7mer_X_dict.xlsx"
-    workbook = xlsxwriter.Workbook('media/SA_nomm_7mer_X_dict_count.xlsx')
-    outpath2_SA_nomm = "media/SA_nomm_7mer_X_dict_count.xlsx"
+    inpath_SA_nomm = DIR + "/SA_nomismatch.xlsx"
+    workbook = xlsxwriter.Workbook(DIR + '/SA_nomm_7mer_X_dict.xlsx')
+    outpath1_SA_nomm = DIR + "/SA_nomm_7mer_X_dict.xlsx"
+    workbook = xlsxwriter.Workbook(DIR + '/SA_nomm_7mer_X_dict_count.xlsx')
+    outpath2_SA_nomm = DIR + "/SA_nomm_7mer_X_dict_count.xlsx"
     data2 = pd.read_excel(inpath_SA_nomm)
     unique_7mers = data2['G5-box'].unique()
     temp = data2
@@ -376,10 +383,10 @@ def performAlgo(request):
         [f.write('{0},{1}\n'.format(key, [len(value), round((100 * len(value) / total), 2)])) for key, value in
          id_set2.items()]
 
-    workbook = xlsxwriter.Workbook('media/7mer_X_dict.xlsx')
-    outpath1 = "media/7mer_X_dict.xlsx"
-    workbook = xlsxwriter.Workbook('media/7mer_X_count_dict.xlsx')
-    outpath2 = "media/7mer_X_count_dict.xlsx"
+    workbook = xlsxwriter.Workbook(DIR + '/7mer_X_dict.xlsx')
+    outpath1 = DIR + "/7mer_X_dict.xlsx"
+    workbook = xlsxwriter.Workbook(DIR + '/7mer_X_count_dict.xlsx')
+    outpath2 = DIR + "/7mer_X_count_dict.xlsx"
 
     SA_nomm = pd.read_excel(inpath_SA_nomm)
     A_nomm = pd.read_excel(inpath_A_nomm)
@@ -431,10 +438,10 @@ def performAlgo(request):
                     x_data.append(x)
         return x_data
 
-    workbook = xlsxwriter.Workbook('media/SA_mm_7mer_2X_dict.xlsx')
-    outpath1_SA_mm = "media/SA_mm_7mer_2X_dict.xlsx"
-    workbook = xlsxwriter.Workbook('media/SA_mm_7mer_2X_dict_count.xlsx')
-    outpath2_SA_mm = "media/SA_mm_7mer_2X_dict_count.xlsx"
+    workbook = xlsxwriter.Workbook(DIR + '/SA_mm_7mer_2X_dict.xlsx')
+    outpath1_SA_mm = DIR + "/SA_mm_7mer_2X_dict.xlsx"
+    workbook = xlsxwriter.Workbook(DIR + '/SA_mm_7mer_2X_dict_count.xlsx')
+    outpath2_SA_mm = DIR + "/SA_mm_7mer_2X_dict_count.xlsx"
 
     data = pd.read_excel(inpath_SA_mm)
     unique_7mers = data['G5-box'].unique()
@@ -461,10 +468,10 @@ def performAlgo(request):
         [f.write('{0},{1}\n'.format(key, [len(value), round((100 * len(value) / total), 2)])) for key, value in
          id_set.items()]
 
-    workbook = xlsxwriter.Workbook('media/A_nomm_7mer_2X_dict.xlsx')
-    outpath1_A_nomm = "media/A_nomm_7mer_2X_dict.xlsx"
-    workbook = xlsxwriter.Workbook('media/A_nomm_7mer_2X_dict_count.xlsx')
-    outpath2_A_nomm = "media/A_nomm_7mer_2X_dict_count.xlsx"
+    workbook = xlsxwriter.Workbook(DIR + '/A_nomm_7mer_2X_dict.xlsx')
+    outpath1_A_nomm = DIR + "/A_nomm_7mer_2X_dict.xlsx"
+    workbook = xlsxwriter.Workbook(DIR + '/A_nomm_7mer_2X_dict_count.xlsx')
+    outpath2_A_nomm = DIR + "/A_nomm_7mer_2X_dict_count.xlsx"
 
     data = pd.read_excel(inpath_A_nomm)
     unique_7mers = data['G5-box'].unique()
@@ -491,10 +498,10 @@ def performAlgo(request):
         [f.write('{0},{1}\n'.format(key, [len(value), round((100 * len(value) / total), 2)])) for key, value in
          id_set1.items()]
 
-    workbook = xlsxwriter.Workbook('media/SA_nomm_7mer_2X_dict.xlsx')
-    outpath1_SA_nomm = "media/SA_nomm_7mer_2X_dict.xlsx"
-    workbook = xlsxwriter.Workbook('media/SA_nomm_7mer_2X_dict_count.xlsx')
-    outpath2_SA_nomm = "media/SA_nomm_7mer_2X_dict_count.xlsx"
+    workbook = xlsxwriter.Workbook(DIR + '/SA_nomm_7mer_2X_dict.xlsx')
+    outpath1_SA_nomm = DIR + "/SA_nomm_7mer_2X_dict.xlsx"
+    workbook = xlsxwriter.Workbook(DIR + '/SA_nomm_7mer_2X_dict_count.xlsx')
+    outpath2_SA_nomm = DIR + "/SA_nomm_7mer_2X_dict_count.xlsx"
     data = pd.read_excel(inpath_SA_nomm)
     unique_7mers = data['G5-box'].unique()
     temp = data
@@ -520,10 +527,10 @@ def performAlgo(request):
         [f.write('{0},{1}\n'.format(key, [len(value), round((100 * len(value) / total), 2)])) for key, value in
          id_set2.items()]
 
-    workbook = xlsxwriter.Workbook('media/7mer_2X_dict.xlsx')
-    outpath1 = "media/7mer_2X_dict.xlsx"
-    workbook = xlsxwriter.Workbook('media/7mer_2X_count_dict.xlsx')
-    outpath2 = "media/7mer_2X_count_dict.xlsx"
+    workbook = xlsxwriter.Workbook(DIR + '/7mer_2X_dict.xlsx')
+    outpath1 = DIR + "/7mer_2X_dict.xlsx"
+    workbook = xlsxwriter.Workbook(DIR + '/7mer_2X_count_dict.xlsx')
+    outpath2 = DIR + "/7mer_2X_count_dict.xlsx"
 
     SA_nomm = pd.read_excel(inpath_SA_nomm)
     A_nomm = pd.read_excel(inpath_A_nomm)
@@ -576,10 +583,10 @@ def performAlgo(request):
                         x_data.append(x)
         return x_data
 
-    workbook = xlsxwriter.Workbook('media/SA_mm_7mer_3X_dict.xlsx')
-    outpath1_SA_mm = "media/SA_mm_7mer_3X_dict.xlsx"
-    workbook = xlsxwriter.Workbook('media/SA_mm_7mer_3X_dict_count.xlsx')
-    outpath2_SA_mm = "media/SA_mm_7mer_3X_dict_count.xlsx"
+    workbook = xlsxwriter.Workbook(DIR + '/SA_mm_7mer_3X_dict.xlsx')
+    outpath1_SA_mm = DIR + "/SA_mm_7mer_3X_dict.xlsx"
+    workbook = xlsxwriter.Workbook(DIR + '/SA_mm_7mer_3X_dict_count.xlsx')
+    outpath2_SA_mm = DIR + "/SA_mm_7mer_3X_dict_count.xlsx"
 
     data = pd.read_excel(inpath_SA_mm)
     unique_7mers = data['G5-box'].unique()
@@ -606,10 +613,10 @@ def performAlgo(request):
         [f.write('{0},{1}\n'.format(key, [len(value), round((100 * len(value) / total), 2)])) for key, value in
          id_set.items()]
 
-    workbook = xlsxwriter.Workbook('media/A_nomm_7mer_3X_dict.xlsx')
-    outpath1_A_nomm = "media/A_nomm_7mer_3X_dict.xlsx"
-    workbook = xlsxwriter.Workbook('media/A_nomm_7mer_3X_dict_count.xlsx')
-    outpath2_A_nomm = "media/A_nomm_7mer_3X_dict_count.xlsx"
+    workbook = xlsxwriter.Workbook(DIR + '/A_nomm_7mer_3X_dict.xlsx')
+    outpath1_A_nomm = DIR + "/A_nomm_7mer_3X_dict.xlsx"
+    workbook = xlsxwriter.Workbook(DIR + '/A_nomm_7mer_3X_dict_count.xlsx')
+    outpath2_A_nomm = DIR + "/A_nomm_7mer_3X_dict_count.xlsx"
 
     data = pd.read_excel(inpath_A_nomm)
     unique_7mers = data['G5-box'].unique()
@@ -636,10 +643,10 @@ def performAlgo(request):
         [f.write('{0},{1}\n'.format(key, [len(value), round((100 * len(value) / total), 2)])) for key, value in
          id_set1.items()]
 
-    workbook = xlsxwriter.Workbook('media/SA_nomm_7mer_3X_dict.xlsx')
-    outpath1_SA_nomm = "media/SA_nomm_7mer_3X_dict.xlsx"
-    workbook = xlsxwriter.Workbook('media/SA_nomm_7mer_3X_dict_count.xlsx')
-    outpath2_SA_nomm = "media/SA_nomm_7mer_3X_dict_count.xlsx"
+    workbook = xlsxwriter.Workbook(DIR + '/SA_nomm_7mer_3X_dict.xlsx')
+    outpath1_SA_nomm = DIR + "/SA_nomm_7mer_3X_dict.xlsx"
+    workbook = xlsxwriter.Workbook(DIR + '/SA_nomm_7mer_3X_dict_count.xlsx')
+    outpath2_SA_nomm = DIR + "/SA_nomm_7mer_3X_dict_count.xlsx"
     data = pd.read_excel(inpath_SA_nomm)
     unique_7mers = data['G5-box'].unique()
     temp = data
@@ -665,10 +672,10 @@ def performAlgo(request):
         [f.write('{0},{1}\n'.format(key, [len(value), round((100 * len(value) / total), 2)])) for key, value in
          id_set2.items()]
 
-    workbook = xlsxwriter.Workbook('media/7mer_3X_dict.xlsx')
-    outpath1 = "media/7mer_3X_dict.xlsx"
-    workbook = xlsxwriter.Workbook('media/7mer_3X_count_dict.xlsx')
-    outpath2 = "media/7mer_3X_count_dict.xlsx"
+    workbook = xlsxwriter.Workbook(DIR + '/7mer_3X_dict.xlsx')
+    outpath1 = DIR + "/7mer_3X_dict.xlsx"
+    workbook = xlsxwriter.Workbook(DIR + '/7mer_3X_count_dict.xlsx')
+    outpath2 = DIR + "/7mer_3X_count_dict.xlsx"
 
     SA_nomm = pd.read_excel(inpath_SA_nomm)
     A_nomm = pd.read_excel(inpath_A_nomm)
@@ -723,10 +730,10 @@ def performAlgo(request):
                             x_data.append(x)
         return x_data
 
-    workbook = xlsxwriter.Workbook('media/SA_mm_7mer_4X_dict.xlsx')
-    outpath1_SA_mm = "media/SA_mm_7mer_4X_dict.xlsx"
-    workbook = xlsxwriter.Workbook("media/SA_mm_7mer_4X_dict_count.xlsx")
-    outpath2_SA_mm = "media/SA_mm_7mer_4X_dict_count.xlsx"
+    workbook = xlsxwriter.Workbook(DIR + '/SA_mm_7mer_4X_dict.xlsx')
+    outpath1_SA_mm = DIR + "/SA_mm_7mer_4X_dict.xlsx"
+    workbook = xlsxwriter.Workbook(DIR + "/SA_mm_7mer_4X_dict_count.xlsx")
+    outpath2_SA_mm = DIR + "/SA_mm_7mer_4X_dict_count.xlsx"
 
     data = pd.read_excel(inpath_SA_mm)
     unique_7mers = data['G5-box'].unique()
@@ -753,10 +760,10 @@ def performAlgo(request):
         [f.write('{0},{1}\n'.format(key, [len(value), round((100 * len(value) / total), 2)])) for key, value in
          id_set.items()]
 
-    workbook = xlsxwriter.Workbook('media/A_nomm_7mer_4X_dict.xlsx')
-    outpath1_A_nomm = "media/A_nomm_7mer_4X_dict.xlsx"
-    workbook = xlsxwriter.Workbook('media/A_nomm_7mer_4X_dict_count.xlsx')
-    outpath2_A_nomm = "media/A_nomm_7mer_4X_dict_count.xlsx"
+    workbook = xlsxwriter.Workbook(DIR + '/A_nomm_7mer_4X_dict.xlsx')
+    outpath1_A_nomm = DIR + "/A_nomm_7mer_4X_dict.xlsx"
+    workbook = xlsxwriter.Workbook(DIR + '/A_nomm_7mer_4X_dict_count.xlsx')
+    outpath2_A_nomm = DIR + "/A_nomm_7mer_4X_dict_count.xlsx"
 
     data = pd.read_excel(inpath_A_nomm)
     unique_7mers = data['G5-box'].unique()
@@ -783,10 +790,10 @@ def performAlgo(request):
         [f.write('{0},{1}\n'.format(key, [len(value), round((100 * len(value) / total), 2)])) for key, value in
          id_set1.items()]
 
-    workbook = xlsxwriter.Workbook('media/SA_nomm_7mer_4X_dict.xlsx')
-    outpath1_SA_nomm = "media/SA_nomm_7mer_4X_dict.xlsx"
-    workbook = xlsxwriter.Workbook('media/SA_nomm_7mer_4X_dict_count.xlsx')
-    outpath2_SA_nomm = "media/SA_nomm_7mer_4X_dict_count.xlsx"
+    workbook = xlsxwriter.Workbook(DIR + '/SA_nomm_7mer_4X_dict.xlsx')
+    outpath1_SA_nomm = DIR + "/SA_nomm_7mer_4X_dict.xlsx"
+    workbook = xlsxwriter.Workbook(DIR + '/SA_nomm_7mer_4X_dict_count.xlsx')
+    outpath2_SA_nomm = DIR + "/SA_nomm_7mer_4X_dict_count.xlsx"
     data = pd.read_excel(inpath_SA_nomm)
     unique_7mers = data['G5-box'].unique()
     temp = data
@@ -812,10 +819,10 @@ def performAlgo(request):
         [f.write('{0},{1}\n'.format(key, [len(value), round((100 * len(value) / total), 2)])) for key, value in
          id_set2.items()]
 
-    workbook = xlsxwriter.Workbook('media/7mer_4X_dict.xlsx')
-    outpath1 = "media/7mer_4X_dict.xlsx"
-    workbook = xlsxwriter.Workbook('media/7mer_4X_count_dict.xlsx')
-    outpath2 = "media/7mer_4X_count_dict.xlsx"
+    workbook = xlsxwriter.Workbook(DIR + '/7mer_4X_dict.xlsx')
+    outpath1 = DIR + "/7mer_4X_dict.xlsx"
+    workbook = xlsxwriter.Workbook(DIR + '/7mer_4X_count_dict.xlsx')
+    outpath2 = DIR + "/7mer_4X_count_dict.xlsx"
 
     SA_nomm = pd.read_excel(inpath_SA_nomm)
     A_nomm = pd.read_excel(inpath_A_nomm)
@@ -885,9 +892,9 @@ def performAlgo(request):
     abc = []
     l1 = []
 
-    inpath = "media/new.xlsx"
-    workbook = xlsxwriter.Workbook('media/output_new.xlsx')
-    outpath = "media/output_new.xlsx"
+    inpath = DIR + "/new.xlsx"
+    workbook = xlsxwriter.Workbook(DIR + '/output_new.xlsx')
+    outpath = DIR + "/output_new.xlsx"
 
     df1 = pd.read_excel(inpath)
     df2 = df1.set_index("Entry", drop=False)
@@ -909,18 +916,18 @@ def performAlgo(request):
     gdomains.head()
     gdomains.to_excel(outpath, index=False)
 
-    df = pd.read_excel("media/output_new.xlsx")
-    df.to_html("media/output_new.html")
+    df = pd.read_excel(DIR + "/output_new.xlsx")
+    df.to_html(DIR + "/output_new.html")
 
-    df = pd.read_excel("media/output_wo_bias.xlsx")
-    df.to_html("media/output_wo_bias.html")
+    df = pd.read_excel(DIR + "/output_wo_bias.xlsx")
+    df.to_html(DIR + "/output_wo_bias.html")
     
     counter = {}
 
-    inpath = "media/new.xlsx"
-    inpath_before = "media/output_new.xlsx"
-    workbook = xlsxwriter.Workbook('media/neg.xlsx')
-    outpath = "media/neg.xlsx"
+    inpath = DIR + "/new.xlsx"
+    inpath_before = DIR + "/output_new.xlsx"
+    workbook = xlsxwriter.Workbook(DIR + '/neg.xlsx')
+    outpath = DIR + "/neg.xlsx"
     df1 = pd.read_excel(inpath)
     df2 = df1.set_index("Entry", drop=False)
     protein = df2.loc[:, "Sequence"]
@@ -940,8 +947,8 @@ def performAlgo(request):
                                               'Position', 'G5-box', 'Position'])
         counter[j] = df_gdomain_counter(gdomains)
 
-    outpath1 = "media/after.csv"
-    outpath2 = "media/before.csv"
+    outpath1 = DIR + "/after.csv"
+    outpath2 = DIR + "/before.csv"
 
     xyz = pd.DataFrame(pd.concat(counter.values()))
     xyz['Protein'] = xyz.index
@@ -954,49 +961,49 @@ def performAlgo(request):
     xyz_before['Protein'] = xyz_before.index
     xyz_before.to_csv(outpath2)
 
-    df = pd.read_csv("media/after.csv")
-    df.to_html("media/after.html")
+    df = pd.read_csv(DIR + "/after.csv")
+    df.to_html(DIR + "/after.html")
 
-    df = pd.read_csv("media/before.csv")
-    df.to_html("media/before.html")
+    df = pd.read_csv(DIR + "/before.csv")
+    df.to_html(DIR + "/before.html")
 
     return render(request, 'view.html', {})
 
 def downloadfile(request):
-    with open('media/output_wo_bias.xlsx', 'rb') as xlsx:
+    with open(DIR + '/output_wo_bias.xlsx', 'rb') as xlsx:
         response = HttpResponse(xlsx.read())
         response['content_type'] = 'application/xlsx'
         response['Content-Disposition'] = 'attachment;filename=result.xlsx'
         return response
 
 def downloadfilenew(request):
-    with open('media/output_new.xlsx', 'rb') as xlsx:
+    with open(DIR + '/output_new.xlsx', 'rb') as xlsx:
         response = HttpResponse(xlsx.read())
         response['content_type'] = 'application/xlsx'
         response['Content-Disposition'] = 'attachment;filename=result_SMA.xlsx'
         return response
 
 def negative1(request):
-    with open('media/after.csv', 'rb') as csv:
+    with open(DIR + '/after.csv', 'rb') as csv:
         response = HttpResponse(csv.read())
         response['content_type'] = 'application/csv'
         response['Content-Disposition'] = 'attachment;filename=negative_before.csv'
         return response
 
 def negative2(request):
-    with open('media/before.csv', 'rb') as csv:
+    with open(DIR + '/before.csv', 'rb') as csv:
         response = HttpResponse(csv.read())
         response['content_type'] = 'application/csv'
         response['Content-Disposition'] = 'attachment;filename=negative_after.csv'
         return response
 
 def negative3(request):
-    with open('media/before.csv', 'r') as f:
+    with open(DIR + '/before.csv', 'r') as f:
         before = f.readlines()
     beforedata = [x.strip('\n').split(',') for x in before]
     beforedata = dict([(x[0], x[1]) for x in beforedata[1:]])
 
-    with open('media/after.csv', 'r') as f:
+    with open(DIR + '/after.csv', 'r') as f:
         negcontrol = f.readlines()
     negdata = [x.strip('\n').split(',') for x in negcontrol]
     negdata = dict([(x[0], float(x[1])) for x in negdata[1:]])
@@ -1030,8 +1037,6 @@ def negative3(request):
     pilImage = PIL.Image.frombytes("RGB", canvas.get_width_height(), canvas.tostring_rgb())
     pilImage.save(buffer, "PNG")
     pylab.close()
-    plt.close()
-
 
     # Send buffer in a http response the the browser with the mime type image/png set
     return HttpResponse(buffer.getvalue(), content_type="image/png")
@@ -1042,7 +1047,7 @@ def negative_control(request):
 def neg_control(request):
     seq = request.POST.get("query")
 
-    sheet_path = "media/sheet.csv"
+    sheet_path = DIR + "/sheet.csv"
     data4 = pd.read_csv(sheet_path)
     data4.head()
 
@@ -1118,8 +1123,8 @@ def neg_control(request):
             return candidates
 
         inpath = seq
-        workbook = xlsxwriter.Workbook('media/output_wo_bias.xlsx')
-        outpath = "media/output_wo_bias.xlsx"
+        workbook = xlsxwriter.Workbook(DIR + '/output_wo_bias.xlsx')
+        outpath = DIR + "/output_wo_bias.xlsx"
 
         mismatch1 = data4.loc[xx, "Mismatch_G1"]
         mismatch2 = data4.loc[xx, "Mismatch_G3"]
@@ -1152,8 +1157,8 @@ def neg_control(request):
         abc = []
         l1 = []
 
-        workbook = xlsxwriter.Workbook('media/SA_nomismatch.xlsx')
-        outpath = "media/SA_nomismatch.xlsx"
+        workbook = xlsxwriter.Workbook(DIR + '/SA_nomismatch.xlsx')
+        outpath = DIR + "/SA_nomismatch.xlsx"
 
         str1 = "XXX"
         x41 = str1 + x4 + "X"
@@ -1173,8 +1178,8 @@ def neg_control(request):
         abc = []
         l1 = []
 
-        workbook = xlsxwriter.Workbook('media/SA_mismatch.xlsx')
-        outpath = "media/SA_mismatch.xlsx"
+        workbook = xlsxwriter.Workbook(DIR + '/SA_mismatch.xlsx')
+        outpath = DIR + "/SA_mismatch.xlsx"
         l = H(protein_family, inpath, x1, x2, x3, x41, mismatch1, mismatch2, mismatch3, mismatch4, Min_G1_G3,
               Min_G3_G4, Min_G4_G5, Max_G1_G3, Max_G3_G4, Max_G4_G5)
         l1.append(l)
@@ -1190,8 +1195,8 @@ def neg_control(request):
         abc = []
         l1 = []
 
-        workbook = xlsxwriter.Workbook('media/A_nomismatch.xlsx')
-        outpath = "media/A_nomismatch.xlsx"
+        workbook = xlsxwriter.Workbook(DIR + '/A_nomismatch.xlsx')
+        outpath = DIR + "/A_nomismatch.xlsx"
 
         y = x4[1:]
         z = y[:-1]
@@ -1208,11 +1213,11 @@ def neg_control(request):
         gdomains.head()
         gdomains.to_excel(outpath, index=False)
 
-        inpath_SA_mm = "media/SA_mismatch.xlsx"
-        workbook = xlsxwriter.Workbook('media/SA_mm_7mer_X_dict.xlsx')
-        outpath1_SA_mm = "media/SA_mm_7mer_X_dict.xlsx"
-        workbook = xlsxwriter.Workbook('media/SA_mm_7mer_X_dict_count.xlsx')
-        outpath2_SA_mm = "media/SA_mm_7mer_X_dict_count.xlsx"
+        inpath_SA_mm = DIR + "/SA_mismatch.xlsx"
+        workbook = xlsxwriter.Workbook(DIR + '/SA_mm_7mer_X_dict.xlsx')
+        outpath1_SA_mm = DIR + "/SA_mm_7mer_X_dict.xlsx"
+        workbook = xlsxwriter.Workbook(DIR + '/SA_mm_7mer_X_dict_count.xlsx')
+        outpath2_SA_mm = DIR + "/SA_mm_7mer_X_dict_count.xlsx"
 
         def list_of_7mer_X(sevenmer):
             x_data = []
@@ -1250,11 +1255,11 @@ def neg_control(request):
             [f.write('{0},{1}\n'.format(key, [len(value), round((100 * len(value) / total), 2)])) for key, value in
              id_set.items()]
 
-        inpath_A_nomm = "media/A_nomismatch.xlsx"
-        workbook = xlsxwriter.Workbook('media/A_nomm_7mer_X_dict.xlsx')
-        outpath1_A_nomm = "media/A_nomm_7mer_X_dict.xlsx"
-        workbook = xlsxwriter.Workbook('media/A_nomm_7mer_X_dict_count.xlsx')
-        outpath2_A_nomm = "media/A_nomm_7mer_X_dict_count.xlsx"
+        inpath_A_nomm = DIR + "/A_nomismatch.xlsx"
+        workbook = xlsxwriter.Workbook(DIR + '/A_nomm_7mer_X_dict.xlsx')
+        outpath1_A_nomm = DIR + "/A_nomm_7mer_X_dict.xlsx"
+        workbook = xlsxwriter.Workbook(DIR + '/A_nomm_7mer_X_dict_count.xlsx')
+        outpath2_A_nomm = DIR + "/A_nomm_7mer_X_dict_count.xlsx"
 
         data1 = pd.read_excel(inpath_A_nomm)
         unique_7mers = data1['G5-box'].unique()
@@ -1281,11 +1286,11 @@ def neg_control(request):
             [f.write('{0},{1}\n'.format(key, [len(value), round((100 * len(value) / total), 2)])) for key, value in
              id_set1.items()]
 
-        inpath_SA_nomm = "media/SA_nomismatch.xlsx"
-        workbook = xlsxwriter.Workbook('media/SA_nomm_7mer_X_dict.xlsx')
-        outpath1_SA_nomm = "media/SA_nomm_7mer_X_dict.xlsx"
-        workbook = xlsxwriter.Workbook('media/SA_nomm_7mer_X_dict_count.xlsx')
-        outpath2_SA_nomm = "media/SA_nomm_7mer_X_dict_count.xlsx"
+        inpath_SA_nomm = DIR + "/SA_nomismatch.xlsx"
+        workbook = xlsxwriter.Workbook(DIR + '/SA_nomm_7mer_X_dict.xlsx')
+        outpath1_SA_nomm = DIR + "/SA_nomm_7mer_X_dict.xlsx"
+        workbook = xlsxwriter.Workbook(DIR + '/SA_nomm_7mer_X_dict_count.xlsx')
+        outpath2_SA_nomm = DIR + "/SA_nomm_7mer_X_dict_count.xlsx"
         data2 = pd.read_excel(inpath_SA_nomm)
         unique_7mers = data2['G5-box'].unique()
         temp = data2
@@ -1311,10 +1316,10 @@ def neg_control(request):
             [f.write('{0},{1}\n'.format(key, [len(value), round((100 * len(value) / total), 2)])) for key, value in
              id_set2.items()]
 
-        workbook = xlsxwriter.Workbook('media/7mer_X_dict.xlsx')
-        outpath1 = "media/7mer_X_dict.xlsx"
-        workbook = xlsxwriter.Workbook('media/7mer_X_count_dict.xlsx')
-        outpath2 = "media/7mer_X_count_dict.xlsx"
+        workbook = xlsxwriter.Workbook(DIR + '/7mer_X_dict.xlsx')
+        outpath1 = DIR + "/7mer_X_dict.xlsx"
+        workbook = xlsxwriter.Workbook(DIR + '/7mer_X_count_dict.xlsx')
+        outpath2 = DIR + "/7mer_X_count_dict.xlsx"
 
         SA_nomm = pd.read_excel(inpath_SA_nomm)
         A_nomm = pd.read_excel(inpath_A_nomm)
@@ -1366,10 +1371,10 @@ def neg_control(request):
                         x_data.append(x)
             return x_data
 
-        workbook = xlsxwriter.Workbook('media/SA_mm_7mer_2X_dict.xlsx')
-        outpath1_SA_mm = "media/SA_mm_7mer_2X_dict.xlsx"
-        workbook = xlsxwriter.Workbook('media/SA_mm_7mer_2X_dict_count.xlsx')
-        outpath2_SA_mm = "media/SA_mm_7mer_2X_dict_count.xlsx"
+        workbook = xlsxwriter.Workbook(DIR + '/SA_mm_7mer_2X_dict.xlsx')
+        outpath1_SA_mm = DIR + "/SA_mm_7mer_2X_dict.xlsx"
+        workbook = xlsxwriter.Workbook(DIR + '/SA_mm_7mer_2X_dict_count.xlsx')
+        outpath2_SA_mm = DIR + "/SA_mm_7mer_2X_dict_count.xlsx"
 
         data = pd.read_excel(inpath_SA_mm)
         unique_7mers = data['G5-box'].unique()
@@ -1396,10 +1401,10 @@ def neg_control(request):
             [f.write('{0},{1}\n'.format(key, [len(value), round((100 * len(value) / total), 2)])) for key, value in
              id_set.items()]
 
-        workbook = xlsxwriter.Workbook('media/A_nomm_7mer_2X_dict.xlsx')
-        outpath1_A_nomm = "media/A_nomm_7mer_2X_dict.xlsx"
-        workbook = xlsxwriter.Workbook('media/A_nomm_7mer_2X_dict_count.xlsx')
-        outpath2_A_nomm = "media/A_nomm_7mer_2X_dict_count.xlsx"
+        workbook = xlsxwriter.Workbook(DIR + '/A_nomm_7mer_2X_dict.xlsx')
+        outpath1_A_nomm = DIR + "/A_nomm_7mer_2X_dict.xlsx"
+        workbook = xlsxwriter.Workbook(DIR + '/A_nomm_7mer_2X_dict_count.xlsx')
+        outpath2_A_nomm = DIR + "/A_nomm_7mer_2X_dict_count.xlsx"
 
         data = pd.read_excel(inpath_A_nomm)
         unique_7mers = data['G5-box'].unique()
@@ -1426,10 +1431,10 @@ def neg_control(request):
             [f.write('{0},{1}\n'.format(key, [len(value), round((100 * len(value) / total), 2)])) for key, value in
              id_set1.items()]
 
-        workbook = xlsxwriter.Workbook('media/SA_nomm_7mer_2X_dict.xlsx')
-        outpath1_SA_nomm = "media/SA_nomm_7mer_2X_dict.xlsx"
-        workbook = xlsxwriter.Workbook('media/SA_nomm_7mer_2X_dict_count.xlsx')
-        outpath2_SA_nomm = "media/SA_nomm_7mer_2X_dict_count.xlsx"
+        workbook = xlsxwriter.Workbook(DIR + '/SA_nomm_7mer_2X_dict.xlsx')
+        outpath1_SA_nomm = DIR + "/SA_nomm_7mer_2X_dict.xlsx"
+        workbook = xlsxwriter.Workbook(DIR + '/SA_nomm_7mer_2X_dict_count.xlsx')
+        outpath2_SA_nomm = DIR + "/SA_nomm_7mer_2X_dict_count.xlsx"
         data = pd.read_excel(inpath_SA_nomm)
         unique_7mers = data['G5-box'].unique()
         temp = data
@@ -1455,10 +1460,10 @@ def neg_control(request):
             [f.write('{0},{1}\n'.format(key, [len(value), round((100 * len(value) / total), 2)])) for key, value in
              id_set2.items()]
 
-        workbook = xlsxwriter.Workbook('media/7mer_2X_dict.xlsx')
-        outpath1 = "media/7mer_2X_dict.xlsx"
-        workbook = xlsxwriter.Workbook('media/7mer_2X_count_dict.xlsx')
-        outpath2 = "media/7mer_2X_count_dict.xlsx"
+        workbook = xlsxwriter.Workbook(DIR + '/7mer_2X_dict.xlsx')
+        outpath1 = DIR + "/7mer_2X_dict.xlsx"
+        workbook = xlsxwriter.Workbook(DIR + '/7mer_2X_count_dict.xlsx')
+        outpath2 = DIR + "/7mer_2X_count_dict.xlsx"
 
         SA_nomm = pd.read_excel(inpath_SA_nomm)
         A_nomm = pd.read_excel(inpath_A_nomm)
@@ -1511,10 +1516,10 @@ def neg_control(request):
                             x_data.append(x)
             return x_data
 
-        workbook = xlsxwriter.Workbook('media/SA_mm_7mer_3X_dict.xlsx')
-        outpath1_SA_mm = "media/SA_mm_7mer_3X_dict.xlsx"
-        workbook = xlsxwriter.Workbook('media/SA_mm_7mer_3X_dict_count.xlsx')
-        outpath2_SA_mm = "media/SA_mm_7mer_3X_dict_count.xlsx"
+        workbook = xlsxwriter.Workbook(DIR + '/SA_mm_7mer_3X_dict.xlsx')
+        outpath1_SA_mm = DIR + "/SA_mm_7mer_3X_dict.xlsx"
+        workbook = xlsxwriter.Workbook(DIR + '/SA_mm_7mer_3X_dict_count.xlsx')
+        outpath2_SA_mm = DIR + "/SA_mm_7mer_3X_dict_count.xlsx"
 
         data = pd.read_excel(inpath_SA_mm)
         unique_7mers = data['G5-box'].unique()
@@ -1541,10 +1546,10 @@ def neg_control(request):
             [f.write('{0},{1}\n'.format(key, [len(value), round((100 * len(value) / total), 2)])) for key, value in
              id_set.items()]
 
-        workbook = xlsxwriter.Workbook('media/A_nomm_7mer_3X_dict.xlsx')
-        outpath1_A_nomm = "media/A_nomm_7mer_3X_dict.xlsx"
-        workbook = xlsxwriter.Workbook('media/A_nomm_7mer_3X_dict_count.xlsx')
-        outpath2_A_nomm = "media/A_nomm_7mer_3X_dict_count.xlsx"
+        workbook = xlsxwriter.Workbook(DIR + '/A_nomm_7mer_3X_dict.xlsx')
+        outpath1_A_nomm = DIR + "/A_nomm_7mer_3X_dict.xlsx"
+        workbook = xlsxwriter.Workbook(DIR + '/A_nomm_7mer_3X_dict_count.xlsx')
+        outpath2_A_nomm = DIR + "/A_nomm_7mer_3X_dict_count.xlsx"
 
         data = pd.read_excel(inpath_A_nomm)
         unique_7mers = data['G5-box'].unique()
@@ -1571,10 +1576,10 @@ def neg_control(request):
             [f.write('{0},{1}\n'.format(key, [len(value), round((100 * len(value) / total), 2)])) for key, value in
              id_set1.items()]
 
-        workbook = xlsxwriter.Workbook('media/SA_nomm_7mer_3X_dict.xlsx')
-        outpath1_SA_nomm = "media/SA_nomm_7mer_3X_dict.xlsx"
-        workbook = xlsxwriter.Workbook('media/SA_nomm_7mer_3X_dict_count.xlsx')
-        outpath2_SA_nomm = "media/SA_nomm_7mer_3X_dict_count.xlsx"
+        workbook = xlsxwriter.Workbook(DIR + '/SA_nomm_7mer_3X_dict.xlsx')
+        outpath1_SA_nomm = DIR + "/SA_nomm_7mer_3X_dict.xlsx"
+        workbook = xlsxwriter.Workbook(DIR + '/SA_nomm_7mer_3X_dict_count.xlsx')
+        outpath2_SA_nomm = DIR + "/SA_nomm_7mer_3X_dict_count.xlsx"
         data = pd.read_excel(inpath_SA_nomm)
         unique_7mers = data['G5-box'].unique()
         temp = data
@@ -1600,10 +1605,10 @@ def neg_control(request):
             [f.write('{0},{1}\n'.format(key, [len(value), round((100 * len(value) / total), 2)])) for key, value in
              id_set2.items()]
 
-        workbook = xlsxwriter.Workbook('media/7mer_3X_dict.xlsx')
-        outpath1 = "media/7mer_3X_dict.xlsx"
-        workbook = xlsxwriter.Workbook('media/7mer_3X_count_dict.xlsx')
-        outpath2 = "media/7mer_3X_count_dict.xlsx"
+        workbook = xlsxwriter.Workbook(DIR + '/7mer_3X_dict.xlsx')
+        outpath1 = DIR + "/7mer_3X_dict.xlsx"
+        workbook = xlsxwriter.Workbook(DIR + '/7mer_3X_count_dict.xlsx')
+        outpath2 = DIR + "/7mer_3X_count_dict.xlsx"
 
         SA_nomm = pd.read_excel(inpath_SA_nomm)
         A_nomm = pd.read_excel(inpath_A_nomm)
@@ -1658,10 +1663,10 @@ def neg_control(request):
                                 x_data.append(x)
             return x_data
 
-        workbook = xlsxwriter.Workbook('media/SA_mm_7mer_4X_dict.xlsx')
-        outpath1_SA_mm = "media/SA_mm_7mer_4X_dict.xlsx"
-        workbook = xlsxwriter.Workbook('media/SA_mm_7mer_4X_dict_count.xlsx')
-        outpath2_SA_mm = "media/SA_mm_7mer_4X_dict_count.xlsx"
+        workbook = xlsxwriter.Workbook(DIR + '/SA_mm_7mer_4X_dict.xlsx')
+        outpath1_SA_mm = DIR + "/SA_mm_7mer_4X_dict.xlsx"
+        workbook = xlsxwriter.Workbook(DIR + '/SA_mm_7mer_4X_dict_count.xlsx')
+        outpath2_SA_mm = DIR + "/SA_mm_7mer_4X_dict_count.xlsx"
 
         data = pd.read_excel(inpath_SA_mm)
         unique_7mers = data['G5-box'].unique()
@@ -1688,10 +1693,10 @@ def neg_control(request):
             [f.write('{0},{1}\n'.format(key, [len(value), round((100 * len(value) / total), 2)])) for key, value in
              id_set.items()]
 
-        workbook = xlsxwriter.Workbook('media/A_nomm_7mer_4X_dict.xlsx')
-        outpath1_A_nomm = "media/A_nomm_7mer_4X_dict.xlsx"
-        workbook = xlsxwriter.Workbook('media/A_nomm_7mer_4X_dict_count.xlsx')
-        outpath2_A_nomm = "media/A_nomm_7mer_4X_dict_count.xlsx"
+        workbook = xlsxwriter.Workbook(DIR + '/A_nomm_7mer_4X_dict.xlsx')
+        outpath1_A_nomm = DIR + "/A_nomm_7mer_4X_dict.xlsx"
+        workbook = xlsxwriter.Workbook(DIR + '/A_nomm_7mer_4X_dict_count.xlsx')
+        outpath2_A_nomm = DIR + "/A_nomm_7mer_4X_dict_count.xlsx"
 
         data = pd.read_excel(inpath_A_nomm)
         unique_7mers = data['G5-box'].unique()
@@ -1718,10 +1723,10 @@ def neg_control(request):
             [f.write('{0},{1}\n'.format(key, [len(value), round((100 * len(value) / total), 2)])) for key, value in
              id_set1.items()]
 
-        workbook = xlsxwriter.Workbook('media/SA_nomm_7mer_4X_dict.xlsx')
-        outpath1_SA_nomm = "media/SA_nomm_7mer_4X_dict.xlsx"
-        workbook = xlsxwriter.Workbook('media/SA_nomm_7mer_4X_dict_count.xlsx')
-        outpath2_SA_nomm = "media/SA_nomm_7mer_4X_dict_count.xlsx"
+        workbook = xlsxwriter.Workbook(DIR + '/SA_nomm_7mer_4X_dict.xlsx')
+        outpath1_SA_nomm = DIR + "/SA_nomm_7mer_4X_dict.xlsx"
+        workbook = xlsxwriter.Workbook(DIR + '/SA_nomm_7mer_4X_dict_count.xlsx')
+        outpath2_SA_nomm = DIR + "/SA_nomm_7mer_4X_dict_count.xlsx"
         data = pd.read_excel(inpath_SA_nomm)
         unique_7mers = data['G5-box'].unique()
         temp = data
@@ -1747,10 +1752,10 @@ def neg_control(request):
             [f.write('{0},{1}\n'.format(key, [len(value), round((100 * len(value) / total), 2)])) for key, value in
              id_set2.items()]
 
-        workbook = xlsxwriter.Workbook('media/7mer_4X_dict.xlsx')
-        outpath1 = "media/7mer_4X_dict.xlsx"
-        workbook = xlsxwriter.Workbook('media/7mer_4X_count_dict.xlsx')
-        outpath2 = "media/7mer_4X_count_dict.xlsx"
+        workbook = xlsxwriter.Workbook(DIR + '/7mer_4X_dict.xlsx')
+        outpath1 = DIR + "/7mer_4X_dict.xlsx"
+        workbook = xlsxwriter.Workbook(DIR + '/7mer_4X_count_dict.xlsx')
+        outpath2 = DIR + "/7mer_4X_count_dict.xlsx"
 
         SA_nomm = pd.read_excel(inpath_SA_nomm)
         A_nomm = pd.read_excel(inpath_A_nomm)
@@ -1819,8 +1824,8 @@ def neg_control(request):
 
         x4 = data4.loc[xx, "G5_box_new"]
 
-        workbook = xlsxwriter.Workbook('media/output_new.xlsx')
-        outpath = "media/output_new.xlsx"
+        workbook = xlsxwriter.Workbook(DIR + '/output_new.xlsx')
+        outpath = DIR + "/output_new.xlsx"
 
         l = H(protein_family, inpath, x1, x2, x3, x4, mismatch1, mismatch2, mismatch3, mismatch4, Min_G1_G3,
                   Min_G3_G4, Min_G4_G5, Max_G1_G3, Max_G3_G4, Max_G4_G5)
@@ -1836,24 +1841,24 @@ def neg_control(request):
         gdomains.head()
         gdomains.to_excel(outpath, index=False)
 
-    df = pd.read_excel("media/output_new.xlsx")
-    df.to_html("media/output_new.html")
+    df = pd.read_excel(DIR + "/output_new.xlsx")
+    df.to_html(DIR + "/output_new.html")
 
     return render(request, 'view1.html', {})
 
 def downloadfile1(request):
-    with open('media/output_new.xlsx', 'rb') as xlsx:
+    with open(DIR + '/output_new.xlsx', 'rb') as xlsx:
         response = HttpResponse(xlsx.read())
         response['content_type'] = 'application/xlsx'
         response['Content-Disposition'] = 'attachment;filename=result.xlsx'
         return response
 
 def showimage(request):
-    inpath_before = "media/output_wo_bias.xlsx"
-    inpath_after = "media/output_new.xlsx"
-    outpath_G1G3 = "media/G1G3.png"
-    outpath_G3G4 = "media/G3G4.png"
-    outpath_G4G5 = "media/G4G5.png"
+    inpath_before = DIR + "/output_wo_bias.xlsx"
+    inpath_after = DIR + "/output_new.xlsx"
+    outpath_G1G3 = DIR + "/G1G3.png"
+    outpath_G3G4 = DIR + "/G3G4.png"
+    outpath_G4G5 = DIR + "/G4G5.png"
     temp_before = pd.read_excel(inpath_before)
     temp_after = pd.read_excel(inpath_after)
     temp_before_spacing = pd.DataFrame()
@@ -1885,8 +1890,6 @@ def showimage(request):
 
     plt.title("G1 − G3 Spacing")
     plt.savefig(outpath_G1G3)
-    plt.close()
-
 
     x2 = temp_before_spacing['G3_G4']
     y2 = temp_after_spacing['G3_G4']
@@ -1907,7 +1910,6 @@ def showimage(request):
 
     plt.title("G3 − G4 Spacing")
     plt.savefig(outpath_G3G4)
-    plt.close()
 
     x3 = temp_before_spacing['G4_G5']
     y3 = temp_after_spacing['G4_G5']
@@ -1928,15 +1930,14 @@ def showimage(request):
 
     plt.title("G4 − G5 Spacing")
     plt.savefig(outpath_G4G5)
-    plt.close()
 
     im3 = PIL.Image.open(outpath_G1G3)
     im4 = PIL.Image.open(outpath_G3G4)
     im5 = PIL.Image.open(outpath_G4G5)
 
-    inpath_before = "media/output_wo_bias.xlsx"
-    outpath_Gbefore = "media/Gbefore.png"
-    outpath_Gafter = "media/Gafter.png"
+    inpath_before = DIR + "/output_wo_bias.xlsx"
+    outpath_Gbefore = DIR + "/Gbefore.png"
+    outpath_Gafter = DIR + "/Gafter.png"
 
     in_file_before = pd.read_excel(inpath_before)
 
@@ -1950,15 +1951,10 @@ def showimage(request):
     G4_before.columns = ['ID', 'Sequence', 'value']
     G5_before.columns = ['ID', 'Sequence', 'value']
 
-    G1_before.loc[:, 'box'] = 'G1'
-    G3_before.loc[:, 'box'] = 'G3'
-    G4_before.loc[:, 'box'] = 'G4'
-    G5_before.loc[:, 'box'] = 'G5'
-    
-    #G1_before['box'] = 'G1'
-    #G3_before['box'] = 'G3'
-    #G4_before['box'] = 'G4'
-    #G5_before['box'] = 'G5'
+    G1_before['box'] = 'G1'
+    G3_before['box'] = 'G3'
+    G4_before['box'] = 'G4'
+    G5_before['box'] = 'G5'
 
     temp_before = pd.concat([G1_before, G3_before, G4_before, G5_before])
 
@@ -1979,9 +1975,8 @@ def showimage(request):
 
     title("No. of Unique G-Boxes Vs Frequency")
     savefig(outpath_Gbefore)
-    plt.close()
 
-    inpath_after = "media/output_new.xlsx"
+    inpath_after = DIR + "/output_new.xlsx"
 
     in_file_after = pd.read_excel(inpath_after)
 
@@ -1995,15 +1990,11 @@ def showimage(request):
     G4_after.columns = ['ID', 'Sequence', 'value']
     G5_after.columns = ['ID', 'Sequence', 'value']
 
-    G1_after.loc[:, 'box'] = 'G1'
-    G3_after.loc[:, 'box'] = 'G3'
-    G4_after.loc[:, 'box'] = 'G4'
-    G5_after.loc[:, 'box'] = 'G5'
+    G1_after['box'] = 'G1'
+    G3_after['box'] = 'G3'
+    G4_after['box'] = 'G4'
+    G5_after['box'] = 'G5'
 
-    #G1_after['box'] = 'G1'
-    #G3_after['box'] = 'G3'
-    #G4_after['box'] = 'G4'
-    #G5_after['box'] = 'G5'
     temp_after = pd.concat([G1_after, G3_after, G4_after, G5_after])
 
     temp_after = temp_after.drop_duplicates()
@@ -2022,9 +2013,8 @@ def showimage(request):
     xlabel('Unique G-Boxes')
     ylabel('Frequency')
 
-    title("Unique G-Boxes Vs Frequency")
+    title("No. of Unique G-Boxes Vs Frequency")
     plt.savefig(outpath_Gafter)
-    plt.close()
 
     im1 = PIL.Image.open(outpath_Gbefore)
     im2 = PIL.Image.open(outpath_Gafter)
@@ -2057,51 +2047,20 @@ def showimage(request):
         im_list_v = [get_concat_h_multi_resize(im_list_h, resample=resample) for im_list_h in im_list_2d]
         return get_concat_v_multi_resize(im_list_v, resample=resample)
 
-    get_concat_tile_resize([[im1, im2], [im3, im4, im5]]).save('media/concat_1.jpg')
+    get_concat_tile_resize([[im1, im2], [im3, im4, im5]]).save(DIR + '/concat_1.jpg')
 
 
 
-    img = open('media/concat_1.jpg', 'rb')
+    img = open(DIR + '/concat_1.jpg', 'rb')
 
     response = FileResponse(img)
 
     return response
 
-    '''inpath_before = "media/output_wo_bias.xlsx"
-    inpath_after = "media/output_new.xlsx"
-    outpath_Rbefore = "media/Rbefore.png"
-    outpath_Rafter = "media/Rafter.png"
-
-    in_file_before = pd.read_excel(inpath_before)
-    in_file_after = pd.read_excel(inpath_after)
-
-    temp_range_before = in_file_before[['ProteinID', 'Position', 'Position.3']]
-    temp_range_before.columns = ["Protein", "Min", "Max"]
-    temp_range_before = temp_range_before.drop_duplicates()
-
-    temp_range_after = in_file_after[['ProteinID', 'Position', 'Position.3']]
-    temp_range_after.columns = ["Protein", "Min", "Max"]
-    temp_range_after = temp_range_after.drop_duplicates()
-
-    x = temp_range_after[['Min', 'Max']]
-
-    x.to_csv("media/x1.csv", index=False)
-
-    with open("media/x1.csv", 'r') as f:
-        data = list(csv.reader(f))
-    data = np.array(data[1:])
-    print(data)
-
-    lc = mc.LineCollection(data, linewidths=2)
-    fig, ax = pylab.subplots()
-    ax.add_collection(lc)
-    ax.autoscale()
-    ax.margins(0.1)
-    plt.savefig("media\\x.png")'''
 
 
 def showimage1(request):
-    with open('media/concat_1.jpg', 'rb') as jpg:
+    with open(DIR + '/concat_1.jpg', 'rb') as jpg:
         response = HttpResponse(jpg.read())
         response['content_type'] = 'application/jpg'
         response['Content-Disposition'] = 'attachment;filename=plots.jpg'
